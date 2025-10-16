@@ -95,7 +95,7 @@ def handle_conversation_node(state: AgentState):
         [
             (
                 "system",
-                "You are a friendly assistant, Diya. Reply to the user politely with a relevant response.",
+                "You are a friendly assistant, Diya. Reply to the user politely with a relevant response. Reply in English or Hindi based on user's question",
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}"),
@@ -157,12 +157,12 @@ def generate_query_node(state: AgentState):
         - **Enquiries**
             - **Enquirys**: contains details about sales enquiries from potential customers.
     - Do not take table as there names suggest. Use the above guide to get the relevant table.
+    - When user asks query based on some id, that can be present in other tables, and there is no previous context for choosing a table, give data, or all occurances.
     ------------------------
     
     --- Data Dictionary ---
     - The "Status" column: 'Completed', 'Yes', 'Done' all mean the task is complete. NULL/Empty, 'Not Complete', 'Pending' may mean the task is pending. Basically anything not complete is pending.
     - The "Priority" column: 'High', 'Urgent', 'H' all mean high priority. 'Low' and 'L' mean low priority.
-    - The "Assignee" column: Usernames like 'john.doe' and 'johnd' should be treated as the same person.
     -----------------------
 
     - **IMPORTANT:** Only return the SQL query. Do not add any other text or explanation.
@@ -217,7 +217,7 @@ def summarize_result_node(state: AgentState):
         [
             (
                 "system",
-                "You are a helpful AI assistant, Diya. Your job is to answer the user's question in concise manner, based on the data provided, which should be easy and fast to read, with markup and lists if needed. And in the same language as user.",
+                "You are a helpful AI assistant, Diya. Your job is to answer the user's question in concise manner, based on the data provided, which should be easy and fast to read, with markup and lists if needed. Only reply in English or Hindi based on user's question.",
             ),
             (
                 "human",
