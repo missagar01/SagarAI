@@ -46,7 +46,7 @@ db_uri = os.getenv("DATABASE_URI")
 engine = create_engine(db_uri)
 
 db = SQLDatabase(engine=engine)
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0)
 execute_query_tool = QuerySQLDatabaseTool(db=db)
 
 
@@ -95,7 +95,7 @@ def handle_conversation_node(state: AgentState):
         [
             (
                 "system",
-                "You are a friendly assistant, Diya. Reply to the user politely with a relevant response. Reply in English or Hindi based on user's question",
+                "You are a friendly assistant solves user's database related queries, Diya. Reply to the user politely with a short relevant relevant response. Reply in English or Hindi based on user's question. All currencies are in Rupees until mentioned other wise.",
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}"),
@@ -118,6 +118,8 @@ def generate_query_node(state: AgentState):
 
     system_prompt = """You are an AI expert in writing PostgreSQL queries.
     Given a user question and conversation history, create a syntactically correct PostgreSQL query.
+    The query should be in its simplest form.
+    The query should fullfill user's query.
     The query should work on the given schema.
     {schema}
 
@@ -186,6 +188,7 @@ def generate_query_node(state: AgentState):
             ("human", "{question}"),
         ]
     )
+    llm = ChatOpenAI(model="gpt-5-nano", temperature=0.7)
     runnable = prompt | llm
     raw_query = runnable.invoke(
         {
@@ -247,7 +250,7 @@ def handle_error_node(state: AgentState):
         [
             (
                 "system",
-                "You are a helpful AI assistant, Diya, for a SQL database. The query you generated failed multiple times. Explain to the user that you couldn't find the answer. Resturn small easy to read with markup response",
+                "You are a helpful AI assistant, Diya, for a SQL database. The query you generated failed multiple times. Explain to the user that you couldn't find the answer. Resturn small easy to read with markup response. All currencies are in Rupees until mentioned other wise.",
             ),
             (
                 "human",

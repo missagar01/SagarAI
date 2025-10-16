@@ -1,4 +1,5 @@
 import os
+import asyncio
 
 from fastapi import FastAPI, BackgroundTasks, Request, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,9 +24,13 @@ class ChatRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Code here runs on startup
-    print("🚀 Application startup: Running initial database sync...")
-    sync_to_db()
-    print("✅ Initial database sync complete. Application is ready.")
+    print("🚀 Application startup: Scheduling initial database sync in the background...")
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, sync_to_db)
+    
+    # The application can now start accepting requests immediately.
+    print("✅ Application is ready. The database sync will proceed in the background.")
+   
     
     yield
     
