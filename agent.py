@@ -126,7 +126,7 @@ def generate_query_node(state: AgentState):
     2.  **HOW TO FIX `UNION`:** You must explicitly list the columns to select. Identify a set of common, meaningful columns (e.g., "Task", "Status", "Assignee", "Priority", "Due_Date"). For tables that are missing one of these columns, you **MUST** select `NULL` and cast it to the appropriate type, aliasing it to the common column name. For example: `SELECT "Task", "Status", NULL::text AS "Assignee" FROM "Checklist"`.
 
     --- Database Descriptions ---
-    - When a user asks about "tasks" or "kaam", they are referring to entries where a table has fields relevant to tasks, like "TaskID", or "Task Description". You MUST query one of these tables. DO NOT invent or query a non-existent table named "tasks".
+    - When a user asks about "tasks" or "kaam", they are referring to entries where a table has fields relevant to tasks, like "TaskID", or "Task Description". You MUST query one of given tables that is related to tasks. DO NOT invent or query a non-existent table named "tasks".
     - When a user asks about "orders" or "po", they are usually referring to entries where a table has fields relevant to Purchase Orders like "Quantity", "PO Number" or "Indent Number".
     - When a user refers to sheets they are actually talking about tables.
     - The database deals with several types of data: Tasks, Purchase Orders, Sales, Production, Inventory, Finance, Employees, and Enquiries.
@@ -155,9 +155,9 @@ def generate_query_node(state: AgentState):
         - **Employees**
             - **Employee Details**: contains information about company employees.
         - **Enquiries**
-            - **Enquirys**: contains details about sales enquiries from potential customers.
+            - **Enquirys**: contains details about order related enquiries from customers.
     - Do not take table as there names suggest. Use the above guide to get the relevant table.
-    - When user asks query based on some id, that can be present in other tables, and there is no previous context for choosing a table, give data, or all occurances.
+    - When user asks query based on some identity, that can be present in other tables, and there is no previous context for choosing a table, give data, or all occurances.
     ------------------------
     
     --- Data Dictionary ---
