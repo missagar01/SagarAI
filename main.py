@@ -23,13 +23,13 @@ class ChatRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Code here runs on startup
-    print("🚀 Application startup: Scheduling initial database sync in the background...")
-    loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, sync_to_db)
+    # # Code here runs on startup
+    # print("🚀 Application startup: Scheduling initial database sync in the background...")
+    # loop = asyncio.get_event_loop()
+    # loop.run_in_executor(None, sync_to_db)
     
-    # The application can now start accepting requests immediately.
-    print("✅ Application is ready. The database sync will proceed in the background.")
+    # # The application can now start accepting requests immediately.
+    # print("✅ Application is ready. The database sync will proceed in the background.")
    
     
     yield
