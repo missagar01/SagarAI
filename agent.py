@@ -126,6 +126,7 @@ def generate_query_node(state: AgentState):
     --- Querying Rules ---
     1.  **CRITICAL `UNION` RULE:** When using `UNION` or `UNION ALL`, you **MUST NOT** use `SELECT *`. The tables have different columns and this will cause an error.
     2.  **HOW TO FIX `UNION`:** You must explicitly list the columns to select. Identify a set of common, meaningful columns (e.g., "Task", "Status", "Assignee", "Priority", "Due_Date"). For tables that are missing one of these columns, you **MUST** select `NULL` and cast it to the appropriate type, aliasing it to the common column name. For example: `SELECT "Task", "Status", NULL::text AS "Assignee" FROM "Checklist"`.
+    3. Use advanced matching techniques, to respond to more flexible queries.
 
     --- Database Descriptions ---
     - When a user asks about "tasks" or "kaam", they are referring to entries where a table has fields relevant to tasks, like "TaskID", or "Task Description". You MUST query one of given tables that is related to tasks. DO NOT invent or query a non-existent table named "tasks".
