@@ -62,7 +62,6 @@
             position: relative;
         }
 
-        /* UPDATED: Header Styles */
         header {
             padding: 1rem 1.5rem;
             border-bottom: 1px solid var(--border-color);
@@ -202,7 +201,34 @@
             font-style: italic;
             color: var(--text-secondary);
         }
-        
+
+        /* --- NEW: Table Styles --- */
+        .message-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+            font-size: 0.95em;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .message-content th, .message-content td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .message-content thead tr {
+            background-color: #e8eaf6;
+            color: #3f51b5;
+            font-weight: 600;
+        }
+        .message-content tbody tr:nth-of-type(even) {
+            background-color: var(--light-bg);
+        }
+        .message-content tbody tr:last-of-type {
+            border-bottom: none;
+        }
+
         .typing-indicator {
             display: flex;
             align-items: center;
@@ -319,9 +345,8 @@
                 <div class="avatar">
                     <span class="material-symbols-outlined">psychology</span>
                 </div>
-                <div class="message-content">
-                    <p>Hello! How can I assist you today?</p>
-                </div>
+                <div class="message-content" id="initial-greeting">
+                    </div>
             </div>
         </div>
 
@@ -428,24 +453,14 @@
             `;
         }
 
-        // --- UPDATED FUNCTION ---
         function buildChatHistory() {
             const history = [];
-            // Select all messages from the DOM, convert NodeList to Array
             const allMessages = Array.from(messageList.querySelectorAll('.message'));
-            
-            // Exclude the last message, which is the bot's loading animation
             const historyMessages = allMessages.slice(0, -1);
-
-            // Define how many conversations to keep (1 convo = 1 user + 1 bot message)
             const conversationsToKeep = 5;
-            const messagesToKeep = conversationsToKeep * 2; // = 10 messages
-
-            // Get only the last N messages. .slice(-N) is perfect for this.
-            // If there are fewer than N messages, it will take all of them.
+            const messagesToKeep = conversationsToKeep * 2;
             const recentMessages = historyMessages.slice(-messagesToKeep);
             
-            // Build the history array from this smaller, recent list of messages
             for (const msg of recentMessages) {
                 const type = msg.classList.contains('user') ? 'human' : 'ai';
                 const content = msg.querySelector('.message-content').innerText;
@@ -460,8 +475,34 @@
             messageList.scrollTop = messageList.scrollHeight;
         }
 
-        // Initial setup
-        sendButton.disabled = true;
+        // --- NEW: Dynamic Greeting Function ---
+        function getDynamicGreeting() {
+            const directorName = "Kavit Passary";
+            const currentHour = new Date().getHours();
+            let timeOfDay;
+
+            if (currentHour >= 5 && currentHour < 12) {
+                timeOfDay = "Morning";
+            } else if (currentHour >= 12 && currentHour < 17) {
+                timeOfDay = "Afternoon";
+            } else {
+                timeOfDay = "Evening";
+            }
+
+            return `
+                <p>Good ${timeOfDay} ${directorName} Sir,</p>
+                <p>I can provide you reports on Purchase, PO Pending, Sales Orders, and more.</p>
+                <p>Please let me know which report you’d like to see today.</p>
+            `;
+        }
+
+        // --- INITIALIZATION ---
+        function initializeChat() {
+            document.getElementById('initial-greeting').innerHTML = getDynamicGreeting();
+            sendButton.disabled = true;
+        }
+
+        initializeChat(); // Run on page load
     </script>
 </body>
 </html>
