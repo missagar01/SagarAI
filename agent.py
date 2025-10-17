@@ -220,14 +220,16 @@ def summarize_result_node(state: AgentState):
         [
             (
                 "system",
-                "You are a helpful AI assistant, Diya. Your job is to answer the user's question in concise manner, based on the data provided, which should be easy and fast to read, with markup and lists and tables if needed. Only reply in English or Hindi based on user's question. Do not give much clarification about how you got the result. Just show the results.",
+                "You are a helpful AI assistant, Diya. Your job is to answer the user's question in concise manner, based on the data provided, which should be easy and fast to read, with markup and lists and tables if needed. Only reply in English or Hindi based on user's question. Do not give any clarification about how you got the result. Just show the results.",
             ),
             (
                 "human",
                 """Based on the user's question: "{question}"
         The following SQL query was generated: "{query}"
         And here is the result from the database: "{result}"
-        Please provide a clear, natural language answer.""",
+        Please provide a clear, natural language answer.
+        Normalize table names, and remove _ in between words.
+        """,
             ),
         ]
     )
@@ -250,7 +252,7 @@ def handle_error_node(state: AgentState):
         [
             (
                 "system",
-                "You are a helpful AI assistant, Diya, for a SQL database. The query you generated failed multiple times. Explain to the user that you couldn't find the answer. Resturn small easy to read with markup response. All currencies are in Rupees until mentioned other wise.",
+                "You are a helpful AI assistant, Diya, for a SQL database. The query you generated failed multiple times. Just say to the user that you couldn't find the answer. Resturn small easy to read with markup response. All currencies are in Rupees until mentioned other wise.",
             ),
             (
                 "human",
