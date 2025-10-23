@@ -132,7 +132,6 @@ def generate_query_node(state: AgentState):
     - When a user asks about "tasks" or "kaam", they are referring to entries where a table has fields relevant to tasks, like "TaskID", or "Task Description". You MUST query one of given tables that is related to tasks. DO NOT invent or query a non-existent table named "tasks".
     - When a user asks about "orders" or "po", they are usually referring to entries where a table has fields relevant to Purchase Orders like "Quantity", "PO Number" or "Indent Number".
     - When a user refers to sheets they are actually talking about tables.
-    - When user asks for report, they are usually demanding a sumamry of the data relevant to the context along side sample rows.The summary should include data like, total rows, total completed, total pending, total amount, total amount pending, etc. this should be specific to the sheet in question.
     - The database deals with several types of data: Tasks, Purchase Orders, Sales, Production, Inventory, Finance, Employees, and Enquiries.
     - Here is a list of tables that fall in each category:
         - **Tasks**
@@ -172,6 +171,7 @@ def generate_query_node(state: AgentState):
     - **IMPORTANT:** Only return the SQL query. Do not add any other text or explanation.
     - **IMPORTANT:** If a table or column name contains a space or is a reserved keyword, you MUST wrap it in double quotes. For example: "Task Description".
     - **IMPORTANT:** Use the columns provided in the schema, if user mention a column that is not in schema, try to find the closest relevant column in the schema.
+    - **IMPORTANT:** When user asks for report, give details like total number of column, total amount pending, total pending, total completed, etc. based on the columns in the table, that can be used to create a report. And also show 5 to 7 sample rows, which should right joined to the report.
     """
 
     if "Error:" in state.get("result", ""):
