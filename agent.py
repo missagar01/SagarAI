@@ -176,18 +176,19 @@ def generate_query_node(state: AgentState):
         - Total pending (if applicable)
         - Other relevant data points based on the columns in the table.
         - Not all data points are directly available from columns names, some data points need to be generated using SQL functions like COUNT, SUM, etc. on relevant columns.
-        - And a small table with aggregate data based on given by, vendors or parties showing insight on the data. Though data points are more important.
+        - And a small table with aggregate data based on given by, vendors or parties and there products etc. showing insight on the data. Though data points are more important.
         - Calculate quantities, amounts, etc. based on different columns in the table. For example, 
             - total amount pending can be calculated using SUM of "Amount" column where "Status" is 'Pending'.
             - total quantity can be calculated using different columns of the row related to quantity like "Quantity", "Total Lifted", "Order Cancelled Quantity", etc. ex Pending Quantity = Quantity - Total Lifted Quantity.
             - Make sure to calculate these data not just SUM("COLUMN_NAME") everywhere.
-            - Add comments in the SQL query to explain your logic where necessary.
+            - Show all the relevant columns in the final table.
     - Make sure that the output of SQL query gives all data at once. Only give one query.
     --------------------
-
+    - **IMPORTANT:** Add comments in the SQL query to explain your logic where necessary.
     - **IMPORTANT:** Only return the SQL query. Do not add any other text or explanation.
     - **IMPORTANT:** If a table or column name contains a space or is a reserved keyword, you MUST wrap it in double quotes. For example: "Task Description".
     - **IMPORTANT:** Use the columns provided in the schema, if user mention a column that is not in schema, try to find the closest relevant column in the schema.
+    - **IMPORTANT:** "PO Pending" or "Pending PO" mean orders that are pending. just "PO" means get data from PO pending table.
     """
 
     if "Error:" in state.get("result", ""):
@@ -206,7 +207,7 @@ def generate_query_node(state: AgentState):
             ("human", "{question}"),
         ]
     )
-    llm = ChatOpenAI(model="o4-mini")
+    # llm = ChatOpenAI(model="o4-mini")
     runnable = prompt | llm
     raw_query = runnable.invoke(
         {
@@ -245,6 +246,10 @@ def summarize_result_node(state: AgentState):
     Keep the large numbers in human readable format, and use indian number system (lakhs, crores) and commas.
     In reports, based on data points, give bite sized insights on the data. Bold the important numbers and details.
     Show information related to all rows seprately, if needed use tables or lists in reports.
+    The structure of report should be,
+        1. The table or list of data (if applicable)
+        2. The data points summary
+        3. The insights on the data.
     """
 
     print("--- Summarizing Result ---")
