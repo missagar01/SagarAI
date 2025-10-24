@@ -1,4 +1,5 @@
 import os
+import json
 from typing import List, TypedDict
 from datetime import datetime
 
@@ -10,9 +11,10 @@ from langchain_openai import ChatOpenAI
 from langchain_community.utilities import SQLDatabase
 from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
 from langgraph.graph import StateGraph, END
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 from pydantic import BaseModel
+import dateparser
 
 # Load environment variables from .env file
 load_dotenv()
@@ -31,14 +33,31 @@ class Conversation(BaseModel):
     pass
 
 
+class TaskCreation(BaseModel):
+    """The user is trying to create a new task, or add more details to a task in progress"""
+
+    pass
+
+
+# --- Task Definition ---
+class Task(TypedDict):
+    description: str
+    timestamp: str
+    planned_date: str
+    department: str
+
+
 # --- Agent State Definition ---
 class AgentState(TypedDict):
     question: str
     chat_history: List[BaseMessage]
     query: str
     result: str
-    answer: str
     retries: int
+
+    task_details: Task
+
+    answer: str
     intent: str
 
 
@@ -46,7 +65,7 @@ db_uri = os.getenv("DATABASE_URI")
 engine = create_engine(db_uri)
 
 db = SQLDatabase(engine=engine)
-llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0)
+llm = ChatOpenAI(model="gpt-4.1", temperature=0)
 execute_query_tool = QuerySQLDatabaseTool(db=db)
 
 
@@ -54,6 +73,15 @@ execute_query_tool = QuerySQLDatabaseTool(db=db)
 def get_current_datetime() -> str:
     """Returns today's date and the current time in ISO 8601 format."""
     return datetime.now().isoformat()
+
+
+@tool
+def get_datetime_from_query(query: str) -> str:
+    """Returns a date time in ISO 8601 format based on the query in english and suitable for parsing date time with dateparser."""
+
+    return dateparser.parse(
+        query, settings={"PREFER_DATES_FROM": "future", "RELATIVE_BASE": datetime.now()}
+    ).isoformat()
 
 
 # --- Graph Nodes ---
@@ -70,7 +98,7 @@ def classify_intent_node(state: AgentState):
             ("human", "{question}"),
         ]
     )
-    tools = [DatabaseQuery, Conversation]
+    tools = [DatabaseQuery, Conversation, TaskCreation]
     llm_with_tools = llm.bind_tools(tools)
     runnable = prompt | llm_with_tools
     ai_message = runnable.invoke(
@@ -112,6 +140,199 @@ def handle_conversation_node(state: AgentState):
     return {"answer": result["output"]}
 
 
+def analyze_query_node(state: AgentState):
+    """Handles task creation from user"""
+
+    task = state.get("task_details", {})
+
+    system_prompt = """Your job is to analyze user's queries, and extract the information for creating a task and return a json with following keys.
+
+    description (required): The description of the task that is to be extracted from conversation. It should be short
+    timestamp (optional, default: current_date): Use the `get_current_datetime` tool when user doesn't want to mention any timestamp, or wants to use current timestamp, like saying "aaj" or "now". Or use `get_datetime_from_query` when user provides a date time in natural language.
+    planned_date (required): Use the `get_current_datetime` tool when user wants to use current timestamp. Or use `get_datetime_from_query` when user provides a date time in natural language. 
+    department (optional, default: Not Provided): The department that needs to respond, extracted from converstation.
+
+    The current state of user task creation is,
+    description: {description}
+    timestamp: {timestamp}
+    planned_date: {planned_date}
+    department: {department}
+
+    ----
+    **IMPORTANT:** Do not use default values until you are sure that user won't provide any other data based on conversation. Once the user provides some sort of confirmation, set the values to there default if empty.
+    **IMPORTANT:** If a field is empty at the current point, dont add it to the JSON.
+    **IMPORTANT:** Without context, do not assume `planned_date` and `timestamp`.
+    **IMPORTANT:** Don't use any tool, until not required.
+    ---
+
+    When user ask to create a task, no data is provided. So just return open and closed curly braces
+
+    ---
+    Here is a list of valid queries for date parser in
+    "tomorrow"
+    "next week"
+    "in 6 days"
+    "next Monday"
+    "on Friday"
+    "2 weeks from now"
+    "by the end of this month"
+    "next year"
+    "October 29, 2025"
+    "in 3 hours"
+
+    Use these to alter the user's date related queries and give in english.
+    ---
+    """
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{question}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ]
+    )
+    tools = [get_current_datetime, get_datetime_from_query]
+    agent_runnable = create_openai_functions_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent_runnable, tools=tools, verbose=True)
+    result = agent_executor.invoke(
+        {
+            "question": state["question"],
+            "chat_history": state.get("chat_history", []),
+            "description": task.get("description", ""),
+            "timestamp": task.get("timestamp", ""),
+            "planned_date": task.get("planned_date", ""),
+            "department": task.get("department", ""),
+        }
+    )
+
+    try:
+        extracted = json.loads(
+            result["output"].strip().replace("```json", "").replace("```", "")
+        )
+    except Exception:
+        extracted = {
+            "description": None,
+            "planned_date": None,
+            "department": None,
+            "timestamp": None,
+        }
+
+    print("Extracted Task Details:", extracted)
+
+    return {"task_details": extracted}
+
+
+def ask_followup_node(state: AgentState):
+    """Asks user follow up based on current state"""
+
+    description = state["task_details"].get("description", None)
+    timestamp = state["task_details"].get("timestamp", None)
+    planned_date = state["task_details"].get("planned_date", None)
+    department = state["task_details"].get("department", None)
+
+    system_prompt = """
+    Based on the current state of the task, ask user a follow up question. Keep it short.
+
+    The current state of user task creation is,
+    description: {description} - Description of task
+    timestamp: {timestamp} - When the task was created
+    planned_date: {planned_date} - Supposed Planned date
+    department: {department} - Department to Respond
+
+    The follow up question should be about one of these fields, and nothing else.
+    if a field is filled don't ask about it.
+    You can only ask follow up questions.
+
+    -> Use Hinglish or English, on the basis of User query.
+    -> Always ask a question about the next about whats left to be filled. Based on the provided details.
+    -> Clearly mention what field the question is about.
+
+    ---
+    Use below format to ask for timestamp, change the words according to context.
+    - Do you want to set a different timestamp or should I set to current time?
+    """
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{question}"),
+        ]
+    )
+    runnable = prompt | llm
+    followup = runnable.invoke(
+        {
+            "question": state["question"],
+            "chat_history": state.get("chat_history", []),
+            "description": description,
+            "timestamp": timestamp,
+            "planned_date": planned_date,
+            "department": department,
+        }
+    ).content
+    if any((description, timestamp, planned_date, department)):
+        followup += f"\n\n### **Current State:**\n"
+        if description:
+            followup += f"\n**Task Description:** {description}\n"
+        if department:
+            followup += f"\n**Department to Respond:** {department}\n"
+        if timestamp:
+            followup += f"\n**Timestamp:** {datetime.fromisoformat(timestamp).strftime('%d-%m-%Y %I:%M %p')}\n"
+        if planned_date:
+            followup += f"\n**Planned Date:** {datetime.fromisoformat(planned_date).strftime('%d-%m-%Y %I:%M %p')}\n"
+    print(f"Follow Up: {followup}")
+    return {"answer": followup}
+
+
+def create_task_node(state: AgentState):
+    """Creates the task in the SQL database using the existing engine."""
+
+    task_data_to_insert = state["task_details"].copy()
+
+    # --- SQL Query Construction ---
+    # We build the query and parameters separately to prevent SQL injection.
+    # The keys in the dictionary (e.g., :description) MUST match
+    # the keys in your task_data_to_insert dictionary.
+
+    columns = task_data_to_insert.keys()
+    column_names = ", ".join([f'"{col}"' for col in columns])
+    param_names = ", ".join([f":{col}" for col in columns])
+
+    # The RETURNING * clause gives us back the row that was just created.
+    sql_query = f"INSERT INTO Ai_Tasks ({column_names}) VALUES ({param_names}) RETURNING *;"
+
+    try:
+        print(f"--- Executing SQL Insert: {sql_query} ---")
+        print(f"--- With Parameters: {task_data_to_insert} ---")
+
+        # Use engine.connect() to safely handle the connection
+        with engine.connect() as conn:
+            # We pass the query and the parameter dictionary separately
+            result = conn.execute(text(sql_query), [task_data_to_insert])
+            conn.commit()  # IMPORTANT: Commit the transaction
+            
+            created_task = result.fetchone() # Get the new row
+            
+            if created_task:
+                print(f"SQL Success: {created_task}")
+                # Access by index: 1=description, 2=planned_date
+                answer = (
+                    f"Task Created Successfully!\n\n"
+                    f"**Task:** {created_task[1]}\n"
+                    f"\n**Planned Date:** {created_task[2].strftime('%d-%m-%Y %I:%M %p')}"
+                )
+            else:
+                answer = "I'm sorry, I tried to create the task but something went wrong and I didn't get a result back."
+
+    except Exception as e:
+        print(f"SQL/Python Exception: {e}")
+        answer = f"I'm sorry, I tried to create the task but failed. Error: {e}"
+
+    # CRITICAL: Clear the task_details from the state after the attempt
+    return {"answer": answer, "task_details": {}}
+
+
 def generate_query_node(state: AgentState):
     """Takes the user's question, generates a SQL query, and adds it to the state."""
     print("--- Generating SQL Query ---")
@@ -135,6 +356,7 @@ def generate_query_node(state: AgentState):
     - The database deals with several types of data: Tasks, Purchase Orders, Sales, Production, Inventory, Finance, Employees, and Enquiries.
     - Here is a list of tables that fall in each category:
         - **Tasks**
+            - **AI Tasks**: tasks that were made and managed via the chatbot.
             - **Checklist**: contains details of recurring tasks.
             - **Delegation**: contains details of delegation tasks (doer-wise, name-wise, giver-wise, department-wise).
         - **Purchase Orders**
@@ -311,11 +533,11 @@ def handle_error_node(state: AgentState):
 
 # --- Conditional Edges ---
 def decide_intent_path(state: AgentState):
-    return (
-        "generate_query"
-        if state["intent"] == "DatabaseQuery"
-        else "handle_conversation"
-    )
+    if state["intent"] == "DatabaseQuery":
+        return "generate_query"
+    if state["intent"] == "TaskCreation":
+        return "analyze_query"
+    return "handle_conversation"
 
 
 def decide_result_status(state: AgentState):
@@ -325,10 +547,26 @@ def decide_result_status(state: AgentState):
     return "summarize_result"
 
 
+def decide_response_type(state: AgentState):
+    """Analyzes the current state, and based not details, creates new task, or asks followup questions."""
+
+    description = state["task_details"].get("description", None)
+    timestamp = state["task_details"].get("timestamp", None)
+    planned_date = state["task_details"].get("planned_date", None)
+    department = state["task_details"].get("department", None)
+
+    if not all((description, timestamp, planned_date, department)):
+        return "ask_followup"
+    return "create_task"
+
+
 # --- Build the Graph ---
 graph = StateGraph(AgentState)
 graph.add_node("classify_intent", classify_intent_node)
 graph.add_node("handle_conversation", handle_conversation_node)
+graph.add_node("analyze_query", analyze_query_node)
+graph.add_node("ask_followup", ask_followup_node)
+graph.add_node("create_task", create_task_node)
 graph.add_node("generate_query", generate_query_node)
 graph.add_node("execute_query", execute_query_node)
 graph.add_node("summarize_result", summarize_result_node)
@@ -338,7 +576,19 @@ graph.set_entry_point("classify_intent")
 graph.add_conditional_edges(
     "classify_intent",
     decide_intent_path,
-    {"generate_query": "generate_query", "handle_conversation": "handle_conversation"},
+    {
+        "generate_query": "generate_query",
+        "handle_conversation": "handle_conversation",
+        "analyze_query": "analyze_query",
+    },
+)
+graph.add_conditional_edges(
+    "analyze_query",
+    decide_response_type,
+    {
+        "ask_followup": "ask_followup",
+        "create_task": "create_task",
+    },
 )
 graph.add_edge("generate_query", "execute_query")
 graph.add_conditional_edges(
