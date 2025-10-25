@@ -420,7 +420,7 @@
 
             } catch (error) {
                 console.error("Error fetching chat response:", error);
-                loadingMessage.querySelector('.message-content').innerHTML = `<p>⚠️ An error occurred. Please try again later.</p>`;
+                loadingMessage.querySelector('.message-content').innerHTML = `<p>😔 Sorry, I couldn't get a response. Our team is working on it.</p>`;
             } finally {
                 scrollToBottom();
             }
