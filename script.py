@@ -12,7 +12,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 APP_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL")
-DB_CONNECTION_STRING = os.getenv("DATABASE_URI")
+DB_CONNECTION_STRING = os.getenv("SALES_DATABASE_URI")
 
 
 # ---------- HELPER FUNCTIONS ----------
