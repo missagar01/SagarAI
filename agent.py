@@ -311,6 +311,7 @@ def generate_query_node(state: AgentState):
             - For example admin user can have "HR, Sales, Purchase" in user_access column.
     - Don't user any other table except checklist, delegation and users for answering task related queries.
     - When user asks query based on some identity, that can be present in other tables, and there is no previous context for choosing a table, give data, or all occurances.
+    - When user asks pending tasks, makes sure to only give pending tasks till now. No pending tasks in future dates.
     """
 
     system_prompt = """You are an AI expert in writing PostgreSQL queries.
