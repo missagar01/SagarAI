@@ -299,6 +299,7 @@ def generate_query_node(state: AgentState):
             - The leave_date marks the start of leave for an user.
             - The leave_end_date marks the end of leave for an user.
             - And remark is the reason for leave. 
+            - The department of user is stored in user_access column. Ignore the column named department.
     - Don't user any other table except checklist, delegation and users for answering task related queries.
     - When user asks query based on some identity, that can be present in other tables, and there is no previous context for choosing a table, give data, or all occurances.
     """
