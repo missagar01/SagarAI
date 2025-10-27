@@ -355,7 +355,7 @@ def generate_query_node(state: AgentState):
     - Make sure to query in limits, as there is a lot of data in the tables. And the limits should make sense for the question asked.
     - The limits should give wrong data for the user's query. Still it should not query 1000s of rows.
     --------------------
-    - **IMPORTANT:** Add comments in the SQL query to explain your logic wherever possible.
+    - **IMPORTANT:** Add comments in the SQL query to explain your logic wherever possible but the query should be valid, and its syntax should not get messed up.
     - **IMPORTANT:** Only return the SQL query. Do not add any other text or explanation.
     - **IMPORTANT:** If a table or column name contains a space or is a reserved keyword, you MUST wrap it in double quotes. For example: "Task Description".
     - **IMPORTANT:** Use the columns provided in the schema, if user mention a column that is not in schema, try to find the closest relevant column in the schema.
