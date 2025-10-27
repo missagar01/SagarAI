@@ -217,6 +217,9 @@ def generate_query_node(state: AgentState):
                 - Received In Store: Planned 5, Actual 5, Time Delay 5, [Receive Status is useless].
                 - Issue From Store: Planned 6, Actual 6, Time Delay 6, Issue Is Approved By, Issued Quantity, Issue Status.
             - Regular vendors are old company vendors, where three party vendors are new vendors suggested.
+            - Basically it deals with purchase orders and store issues.
+            - So when user asks about purchase orders, store indents, store issues, vendors, items in store, use this table.
+            - And only query based on relevant columns for the prompt.
         - **LEAD:**
             - This table tracks the complete customer acquisition and conversion journey in three steps — from initial contact to final order.This table contains data related to sales leads and their follow ups.
             - Step 1: Lead Creation (Customer Contacts Us) - This step records how a new customer reaches out.
